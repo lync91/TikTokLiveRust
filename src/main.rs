@@ -15,7 +15,7 @@ use tokio::signal; // Importing signal handling from tokio
 #[tokio::main] // Main function is asynchronous and uses tokio runtime
 async fn main() {
     init_logger("info"); // Initialize logger with "info" level
-    let user_name = "tragdate";
+    let user_name = "uradatiktok";
 
     let client = create_client(user_name); // Create a client for the given username
 

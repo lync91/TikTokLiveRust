@@ -1,11 +1,13 @@
 use std::collections::HashMap;
 use std::time::Duration;
 
-use bytes::Bytes;
-use reqwest::{Client, RequestBuilder};
-use urlencoding::encode;
-
 use crate::data::live_common::{HttpData, TikTokLiveSettings};
+use bytes::Bytes;
+use isahc::{
+    config::RedirectPolicy, prelude::*, AsyncBody, Body, HttpClient, Response, ResponseFuture,
+};
+// use reqwest::{Client, RequestBuilder};
+use urlencoding::encode;
 
 pub struct HttpRequestFactory {
     pub(crate) settings: TikTokLiveSettings,
@@ -69,27 +71,28 @@ impl HttpRequestBuilder {
         self
     }
 
-    pub fn build_client(&mut self) -> Client {
-        let client = Client::builder()
-            .timeout(self.http_data.time_out)
+    pub fn build_client(&mut self) -> HttpClient {
+        let client = HttpClient::builder()
+            .timeout(Duration::from_secs(5))
+            .redirect_policy(RedirectPolicy::Follow)
             .build()
-            .unwrap();
+            .expect("Failed to build HTTP client");
 
         client
     }
-    pub fn build_get_request(&mut self) -> RequestBuilder {
+    pub async fn get_request(&mut self) -> Result<Response<AsyncBody>, isahc::Error> {
         let client = self.build_client();
         let url = self.as_url();
-        let mut res = client.get(url);
-        for header in self.http_data.headers.clone() {
-            res = res.header(header.0, header.1);
-        }
-        res
+        client.get_async(url).await
+        // for header in self.http_data.headers.clone() {
+        //     res = res.header(header.0, header.1);
+        // }
+        // res
     }
 
     pub async fn as_json(&mut self) -> Option<String> {
-        let result = self.build_get_request().send().await.unwrap();
-
+        let client = self.build_client();
+        let mut result = client.get_async(self.as_url()).await.unwrap();
         if result.status().is_success() {
             let json_res = result.text().await.unwrap();
             Some(json_res)
@@ -99,10 +102,11 @@ impl HttpRequestBuilder {
     }
 
     pub async fn as_bytes(&mut self) -> Option<Bytes> {
-        let result = self.build_get_request().send().await.unwrap();
+        let client = self.build_client();
+        let mut result = client.get_async(self.as_url()).await.unwrap();
 
         if result.status().is_success() {
-            let bytes = result.bytes().await.unwrap();
+            let bytes = result.bytes().await.unwrap().into();
             Some(bytes)
         } else {
             None

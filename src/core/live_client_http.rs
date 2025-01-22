@@ -1,3 +1,4 @@
+use isahc::AsyncReadResponseExt;
 use protobuf::Message;
 
 use crate::data::live_common::TikTokLiveSettings;
@@ -52,7 +53,6 @@ impl TikTokLiveHttpClient {
             .with_param("room_id", request.room_id.as_str())
             .as_json()
             .await;
-
         let json = option.ok_or(LibError::HttpRequestFailed)?;
         map_live_data_response(json).map_err(|e| e)
     }
@@ -85,14 +85,13 @@ impl TikTokLiveHttpClient {
         let sign_server_response = map_sign_server_response(json);
 
         // Getting credentials for connection to websocket
-        let response = self
+        let mut response = self
             .factory
             .request()
             .with_reset()
             .with_time_out(self.settings.http_data.time_out)
             .with_url(sign_server_response.signed_url.as_str())
-            .build_get_request()
-            .send()
+            .get_request()
             .await
             .map_err(|_| LibError::HttpRequestFailed)?;
 

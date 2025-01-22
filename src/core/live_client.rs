@@ -63,7 +63,6 @@ impl TikTokLiveClient {
                 room_id: room_id.clone(),
             })
             .await?;
-
         self.room_info.client_data = response.json;
         if response.live_status != HostOnline {
             error!(
